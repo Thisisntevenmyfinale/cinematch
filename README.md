@@ -19,13 +19,26 @@ All formulas implemented exactly as in lecture slides (verified via formula audi
 
 ## Dataset
 
-MovieLens Latest Small (GroupLens): 100,836 ratings, 610 users, 9,742 movies.
+**Source:** [MovieLens Latest Small](https://grouplens.org/datasets/movielens/latest/) by GroupLens Research (University of Minnesota).
+License: permitted for research and educational use (see dataset README).
+
+**Statistics:** 100,836 ratings, 610 users, 9,742 movies. Rating scale: 0.5--5.0 (half-star increments). Sparsity: 98.3%.
 
 Place data files in `data/raw/`:
 - `ratings.csv` (userId, movieId, rating, timestamp)
 - `movies.csv` (movieId, title, genres)
 - `tags.csv` (userId, movieId, tag, timestamp)
 - `links.csv` (movieId, imdbId, tmdbId)
+
+## Data Preprocessing
+
+**No global filtering or sampling** is applied to the raw MovieLens data. All 100,836 ratings from all 610 users are used as-is.
+
+**Train/test split:** 80/20 random split, stratified by user (`random_state=42`), ensuring every user has ratings in both sets. Implemented in `src/data_loading.py:train_test_split_ratings()`.
+
+**Algorithm-level filtering** (not applied to the dataset globally):
+- `HighestAverageRatingRecommender`: excludes items with fewer than 20 ratings to avoid noisy averages (parameter `min_ratings=20`).
+- `ContentBasedRecommender`: drops items with missing genre metadata (`NaN` in genres column; affects 34 items).
 
 ## Setup
 

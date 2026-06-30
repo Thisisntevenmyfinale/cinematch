@@ -830,20 +830,20 @@ elif page == "Compare":
             for j in range(n_a):
                 om[i, j] = len(all_rec_sets[names[i]] & all_rec_sets[names[j]])
 
-        fig, ax = plt.subplots(figsize=(max(4, n_a * 1.5), max(3, n_a * 1.2)))
+        fig, ax = plt.subplots(figsize=(3.5, 3))
         cmap = mcolors.LinearSegmentedColormap.from_list("c", [C["surface"], C["accent"]])
         ax.imshow(om, cmap=cmap, vmin=0, vmax=10)
         ax.set_xticks(range(n_a))
-        ax.set_xticklabels(names, rotation=25, ha="right", fontsize=8)
+        ax.set_xticklabels(names, rotation=25, ha="right", fontsize=7)
         ax.set_yticks(range(n_a))
-        ax.set_yticklabels(names, fontsize=8)
+        ax.set_yticklabels(names, fontsize=7)
         for i in range(n_a):
             for j in range(n_a):
                 tc = C["bg"] if om[i, j] > 5 else C["white"]
                 ax.text(j, i, f"{int(om[i, j])}", ha="center", va="center",
-                        fontsize=12, fontweight="bold", color=tc)
+                        fontsize=11, fontweight="bold", color=tc)
         plt.tight_layout()
-        st.pyplot(fig)
+        st.pyplot(fig, use_container_width=False)
         plt.close()
 
         total_unique = len(set.union(*all_rec_sets.values()))
