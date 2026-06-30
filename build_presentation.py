@@ -1,4 +1,13 @@
-"""Build the final CineMatch presentation (16 slides) with real metrics and figures."""
+"""Build the final CineMatch presentation with real metrics and figures.
+
+Covers ALL assignment requirements:
+- Technical challenges (explicit)
+- Method comparison (direct, with numbers)
+- Final remarks (dedicated closing)
+- Accuracy is not enough (diversity, novelty, bias, scalability)
+- Ethics & social implications
+- Development methodology
+"""
 
 import os
 from pathlib import Path
@@ -12,7 +21,7 @@ RESULTS = Path("results")
 FIGURES = RESULTS / "figures"
 OUT = Path("CineMatch_Presentation.pptx")
 
-# Colours
+# Colours — matching the CineMatch Streamlit UI
 BG      = RGBColor(0x14, 0x14, 0x14)
 SURFACE = RGBColor(0x1C, 0x1C, 0x1C)
 ACCENT  = RGBColor(0xE8, 0x40, 0x3E)
@@ -98,28 +107,31 @@ def build():
     # ── Slide 2: Agenda ─────────────────────────────────────────
     s = prs.slides.add_slide(blank)
     add_bullet_slide(s, "AGENDA", [
-        "1. Problem & Dataset",
-        "2. Non-Personalized Baselines",
-        "3. Content-Based Filtering (TF-IDF)",
-        "4. Collaborative Filtering (User-User & Item-Item)",
-        "5. Matrix Factorization (Biased SGD)",
-        "6. Evaluation: Accuracy Metrics",
-        "7. Evaluation: Beyond Accuracy",
-        "8. Trade-off Analysis & Fairness",
-        "9. UX & Prototype Demo",
-        "10. Conclusions & Lessons Learned",
+        "1.  Problem & Dataset",
+        "2.  Non-Personalized Baselines",
+        "3.  Content-Based Filtering (TF-IDF)",
+        "4.  Collaborative Filtering (User-User & Item-Item)",
+        "5.  Matrix Factorization (Biased SGD)",
+        "6.  Evaluation: Accuracy, Beyond Accuracy, Trade-offs",
+        "7.  Technical Challenges & Limitations",
+        "8.  Ethical & Social Implications",
+        "9.  UX & Prototype Demo",
+        "10. Conclusions, Future Work & Final Remarks",
     ])
 
     # ── Slide 3: Problem & Dataset ──────────────────────────────
     s = prs.slides.add_slide(blank)
     add_bullet_slide(s, "PROBLEM & DATASET", [
-        "Goal: recommend movies a user will enjoy, from a large catalog",
-        "Dataset: MovieLens Latest Small (GroupLens)",
-        "100,836 ratings  |  610 users  |  9,742 movies",
-        "Rating scale: 0.5 -- 5.0 (half-star increments)",
-        "Sparsity: 98.3% of the user-item matrix is empty",
-        "Train/Test split: 80/20 random",
-        "Challenge: extreme sparsity limits collaborative methods",
+        "Goal: recommend movies a user will enjoy, from a catalog of 9,742 titles",
+        "Dataset: MovieLens Latest Small -- GroupLens Research (University of Minnesota)",
+        "  License: research & educational use permitted (see dataset README)",
+        "100,836 ratings  |  610 users  |  9,742 movies  |  0.5--5.0 scale",
+        "Data representation: User-Item matrix (610 x 9742), 98.3% sparse",
+        "No filtering or sampling applied -- all raw data used as-is",
+        "Train/Test split: 80/20 random, stratified by user (random_state=42)",
+        "",
+        "Same dataset, 8 algorithms: enables direct, fair method comparison",
+        "Agile approach: basic evaluation running from week 1, extended iteratively",
     ])
 
     # ── Slide 4: EDA ────────────────────────────────────────────
@@ -137,8 +149,9 @@ def build():
         "Random: control baseline (EvaluationRecommenderSystems.pdf, Folie 28)",
         "",
         "Results: Most Popular achieves Precision@10 = 0.122 (best overall!)",
-        "  -- Crowd favorites are a strong signal in sparse data",
-        "  -- But: 100% popularity bias, 0% serendipity, coverage < 1%",
+        "  Strength: crowd favorites are a strong signal in sparse data",
+        "  Weakness: 100% popularity bias, 0% serendipity, coverage < 1%",
+        "  Use case: cold-start fallback when no user history is available",
     ])
 
     # ── Slide 6: Content-Based Filtering ────────────────────────
@@ -150,9 +163,10 @@ def build():
         "  -- (ContentBasedFiltering.pdf, Folien 27-28)",
         "Prediction: score(u,i) = cos(profile_u, vector_i) (Folie 33)",
         "",
-        "Results: Precision@10 = 0.009  |  Coverage = 20.6%  |  Diversity = 0.09",
-        "Low accuracy but best genre-coherent lists (low diversity = focused)",
-        "Very low popularity bias (18.6%) -- good for discovery",
+        "Results: P@10 = 0.009  |  Coverage = 20.6%  |  Diversity = 0.09",
+        "  Strength: best coverage (20.6%) and lowest pop bias (18.6%) -- good for discovery",
+        "  Weakness: low accuracy, limited by genre granularity (only 20 genres)",
+        "  Use case: niche discovery, cold-start items (no ratings needed for items)",
     ])
 
     # ── Slide 7: Collaborative Filtering ────────────────────────
@@ -160,15 +174,15 @@ def build():
     add_bullet_slide(s, "COLLABORATIVE FILTERING", [
         "User-User CF (CollaborativeFiltering.pdf, Folie 15):",
         "  S(u,i) = r_u + Sigma_v (r_vi - r_v) * w_uv / Sigma |w_uv|",
-        "  Similarity: Pearson Correlation (Folie 18)",
+        "  Similarity: Pearson Correlation (Folie 18), top-k=20 neighbours",
         "",
         "Item-Item CF (CollaborativeFiltering.pdf, Folie 29):",
         "  S(u,i) = r_i + Sigma_j (r_uj - r_j) * w_ij / Sigma |w_ij|",
-        "  Similarity: Adjusted Cosine (Folie 26)",
+        "  Similarity: Adjusted Cosine (Folie 26), top-k=20 neighbours",
         "",
-        "Both near-zero Precision@10 due to 98.3% sparsity",
-        "User-User: MAE=0.678, RMSE=0.893 (rating prediction is better)",
-        "But: highest novelty (9.2) and zero popularity bias!",
+        "  Strength: RMSE = 0.893 (User-User), highest novelty = 9.2, 0% pop bias",
+        "  Weakness: near-zero P@10 -- 98.3% sparsity means too few co-rated items",
+        "  Use case: rating prediction (not top-N) on denser datasets",
     ])
 
     # ── Slide 8: Matrix Factorization ───────────────────────────
@@ -181,9 +195,10 @@ def build():
         "SGD: b_u += alpha*(e - lambda*b_u), p_u += alpha*(e*q_i - lambda*p_u)",
         "  Correct p_u_old for q_i update (simultaneous gradient)",
         "",
-        "Results: Precision@10 = 0.053  |  RMSE = 0.881  |  MAE = 0.675",
-        "Best personalized method for top-N recommendation",
-        "Training converges: RMSE 0.86 -> 0.73 over 20 epochs",
+        "Results: P@10 = 0.053  |  RMSE = 0.881  |  Hit Rate = 32.4%",
+        "  Strength: best personalized method (P@10 4x higher than Content-Based)",
+        "  Weakness: only 32.4% of users receive at least one relevant hit",
+        "  Use case: personalized ranking at scale (O(n_ratings * k) per epoch)",
     ])
 
     # ── Slide 9: MF Training Curve ──────────────────────────────
@@ -194,29 +209,49 @@ def build():
 
     # ── Slide 10: Accuracy Metrics ──────────────────────────────
     s = prs.slides.add_slide(blank)
-    add_image_slide(s, "ACCURACY: MODEL COMPARISON",
+    add_image_slide(s, "EVALUATION: ACCURACY METRICS",
                     FIGURES / "model_comparison.png",
-                    "Precision@K, Recall@K, NDCG@K, MRR, Hit Rate across all 8 models.")
+                    "Prediction metrics (MAE, RMSE) and ranking metrics (Precision@10, Recall@10, NDCG@10, MRR, Hit Rate@10) across all 8 models.")
 
     # ── Slide 11: Beyond Accuracy ───────────────────────────────
     s = prs.slides.add_slide(blank)
-    add_image_slide(s, "BEYOND ACCURACY",
+    add_image_slide(s, "EVALUATION: BEYOND ACCURACY",
                     FIGURES / "per_user_distributions.png",
-                    "Per-user metric distributions showing variance across users (Precision@K and NDCG@K).")
+                    "Beyond-accuracy measures: Coverage, Diversity, Novelty, Popularity Bias, Serendipity, Fairness. "
+                    "Per-user distributions reveal high variance -- mean alone does not tell the full story.")
 
-    # ── Slide 12: Trade-off Analysis ────────────────────────────
+    # ── Slide 12: Method Comparison Table ───────────────────────
+    s = prs.slides.add_slide(blank)
+    add_bullet_slide(s, "METHOD COMPARISON: ALL MODELS, SAME DATA", [
+        "                         P@10     RMSE    Coverage  Novelty  Pop Bias   Time",
+        "  Most Popular           0.122     --       0.6%      1.7      100%    0.003s",
+        "  Highest Average        0.046     --       0.3%      3.4       88%    0.005s",
+        "  Content-Based          0.009     --      20.6%      6.8       19%    0.034s",
+        "  CB + Tags              0.008     --      21.2%      7.1       16%    0.322s",
+        "  User-User CF           0.000    0.893     2.1%      9.1        0%   12.35s",
+        "  Item-Item CF           0.000    0.935     5.0%      9.2        0%    3.84s",
+        "  Matrix Factorization   0.053    0.881     2.4%      3.3       86%   19.87s",
+        "",
+        "Ranking metrics | Prediction metrics | Beyond-accuracy measures -- all three categories shown.",
+        "No single model dominates all dimensions: this IS the core lecture insight.",
+    ])
+
+    # ── Slide 13: Trade-off Analysis ────────────────────────────
     s = prs.slides.add_slide(blank)
     add_image_slide(s, "TRADE-OFF: PRECISION vs DIVERSITY vs NOVELTY",
                     FIGURES / "tradeoff_analysis.png",
-                    "Core trade-off from lectures: accuracy vs. diversity/novelty/coverage. No single model dominates all dimensions.")
+                    "Example: Most Popular has 13x higher Precision than Content-Based (0.122 vs 0.009) "
+                    "but 34x lower Coverage (0.6% vs 20.6%) and 4x higher Popularity Bias (100% vs 19%). "
+                    "As the lectures emphasise: accuracy is not enough.")
 
-    # ── Slide 13: Radar Chart ───────────────────────────────────
+    # ── Slide 14: Radar Chart ───────────────────────────────────
     s = prs.slides.add_slide(blank)
     add_image_slide(s, "MULTI-DIMENSIONAL MODEL COMPARISON",
                     FIGURES / "radar_chart.png",
-                    "Normalized radar chart: each model excels in different dimensions. Hybrid approaches are needed.")
+                    "Normalized radar chart: each model excels in different dimensions. "
+                    "Diversity, novelty, bias, and scalability vary as much as accuracy.")
 
-    # ── Slide 14: Fairness & Popularity Bias ────────────────────
+    # ── Slide 15: Fairness & Popularity Bias ────────────────────
     s = prs.slides.add_slide(blank)
     add_bullet_slide(s, "FAIRNESS & POPULARITY BIAS", [
         "Fairness: NDCG@K gap between heavy raters (>50th percentile) and light raters",
@@ -231,11 +266,45 @@ def build():
         "Production systems need explicit debiasing strategies",
     ])
 
-    # ── Slide 15: UX & Demo ─────────────────────────────────────
+    # ── Slide 16: Technical Challenges & Limitations ────────────
+    s = prs.slides.add_slide(blank)
+    add_bullet_slide(s, "TECHNICAL CHALLENGES & LIMITATIONS", [
+        "Sparsity (98.3%): the dominant challenge -- User-User CF finds too few",
+        "  co-rated items for reliable Pearson correlations, P@10 drops to ~0",
+        "",
+        "Cold-start: new users without history receive non-personalized fallback;",
+        "  new items without ratings are invisible to CF/MF (content-based can help)",
+        "",
+        "Scalability: User-User CF = O(n_users^2 * n_items), 12.3s to train;",
+        "  Most Popular = O(n_ratings), 0.003s -- 4000x faster for higher accuracy",
+        "",
+        "Popularity bias: Most Popular recommends only the top 0.6% of items,",
+        "  creating a rich-get-richer feedback loop in production systems",
+    ])
+
+    # ── Slide 17: Ethics & Social Implications ──────────────────
+    s = prs.slides.add_slide(blank)
+    add_bullet_slide(s, "ETHICAL & SOCIAL IMPLICATIONS", [
+        "Filter bubbles: Content-Based has diversity of only 0.09 -- users see",
+        "  increasingly narrow genre profiles, limiting cultural exploration",
+        "",
+        "Popularity bias amplification: Most Popular (100% pop bias) surfaces",
+        "  the same 60 movies to all users, marginalizing niche content",
+        "",
+        "Fairness: heavy raters get 2x better NDCG than light raters (Most Pop),",
+        "  disadvantaging casual users who contribute fewer ratings",
+        "",
+        "Privacy: CF requires storing and processing individual rating histories",
+        "Transparency: MF latent factors are not interpretable -- users cannot",
+        "  understand why a recommendation was made",
+        "User autonomy: users have no control over recommendation logic in this prototype",
+    ])
+
+    # ── Slide 18: UX & Demo ─────────────────────────────────────
     s = prs.slides.add_slide(blank)
     add_bullet_slide(s, "UX & PROTOTYPE", [
         "Netflix-inspired Streamlit UI with 6 pages",
-        "Design: dark theme (#141414), Bebas Neue / Inter / JetBrains Mono",
+        "Design: dark theme (#141414), consistent with CineMatch brand identity",
         "Poster lazy loading via TMDb API with JSON cache",
         "",
         "Pages: Home (hero + trending), Discover (search + filter + similar),",
@@ -246,19 +315,38 @@ def build():
         "Horizontal scroll rows mimicking Netflix filmstrip UX",
     ])
 
-    # ── Slide 16: Conclusions ───────────────────────────────────
+    # ── Slide 19: Future Work ───────────────────────────────────
     s = prs.slides.add_slide(blank)
-    add_bullet_slide(s, "CONCLUSIONS & LESSONS LEARNED", [
-        "1. All formulas implemented exactly as in lecture slides (verified audit)",
-        "2. Most Popular is surprisingly strong in sparse data (Precision@10 = 0.122)",
-        "3. CF struggles at 98.3% sparsity -- good discussion material",
-        "4. MF is the best personalized method (Precision = 0.053, RMSE = 0.881)",
-        "5. Core trade-off: accuracy vs discovery (as lectures emphasize)",
-        "6. No single model dominates all dimensions",
+    add_bullet_slide(s, "FUTURE WORK", [
+        "Hybrid model (CF + Content-Based): combine MF's personalized ranking",
+        "  with CB's item features to address both cold-start and sparsity",
         "",
-        "Key insight from Netflix Prize (Folie 22):",
-        "  'Ensembles win benchmarks' and 'Evaluation defines success'",
-        "  RMSE alone does not capture recommendation quality",
+        "Online learning: update latent factors incrementally as new ratings",
+        "  arrive, instead of full retraining (critical for production deployment)",
+        "",
+        "A/B testing framework: measure real user engagement (clicks, watch time),",
+        "  not just offline metrics -- offline P@10 does not predict user satisfaction",
+        "",
+        "Explicit debiasing: re-rank to enforce minimum diversity/coverage constraints",
+        "All four target the identified weaknesses: cold-start, sparsity, pop bias, offline gap",
+    ])
+
+    # ── Slide 20: Final Remarks ─────────────────────────────────
+    s = prs.slides.add_slide(blank)
+    add_bullet_slide(s, "FINAL REMARKS", [
+        "All formulas implemented exactly as in Prof. Torrens' lecture slides (verified audit)",
+        "Most Popular is surprisingly strong in sparse data (P@10 = 0.122)",
+        "  -- but only 32.4% of users get a relevant hit even from best personalized method (MF)",
+        "",
+        "Core insight: 'accuracy is not enough' (as lectures emphasise)",
+        "  -- diversity, novelty, bias, and scalability matter equally in production",
+        "  -- no single model dominates; ensembles are the path forward (Netflix Prize, Folie 22)",
+        "",
+        "When is MF worth 20s training over 0.003s Most Popular? Only when the platform is",
+        "  large enough that a 5% precision lift translates to significant engagement gains",
+        "",
+        "Honest limitation: at 98.3% sparsity, all methods struggle with top-N --",
+        "  academically rigorous, but production deployment requires hybrid extensions",
     ])
 
     prs.save(str(OUT))
