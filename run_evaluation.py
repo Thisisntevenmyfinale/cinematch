@@ -29,10 +29,10 @@ from src.baselines import (
     MostPopularRecommender, HighestAverageRatingRecommender, RandomRecommender,
 )
 from src.content_based import ContentBasedRecommender
-from src.collaborative_filtering import ItemItemCollaborativeFiltering
+from src.collaborative_filtering import ItemItemCollaborativeFiltering, UserUserCollaborativeFiltering
 from src.matrix_factorization import MatrixFactorizationRecommender
 from src.evaluation import (
-    evaluate_model, precision_at_k, recall_at_k, ndcg_at_k,
+    evaluate_model, user_fairness, precision_at_k, recall_at_k, ndcg_at_k,
     mean_reciprocal_rank, catalog_coverage, intra_list_diversity,
     novelty_score, popularity_bias, serendipity_score, mae, rmse,
 )
@@ -72,13 +72,14 @@ def main():
         ("Content-Based", ContentBasedRecommender(use_tags=False)),
         ("CB + Tags", ContentBasedRecommender(use_tags=True)),
         ("Item-Item CF", ItemItemCollaborativeFiltering(k=30)),
+        ("User-User CF", UserUserCollaborativeFiltering(k=30)),
         ("Matrix Fact.", MatrixFactorizationRecommender(
             n_factors=50, n_epochs=20, lr=0.005, reg=0.02, verbose=False)),
     ]
 
     for name, model in model_configs:
         t0 = time.time()
-        if name == "CB + Tags":
+        if name in ("CB + Tags",):
             model.fit(train, items, tags=tags)
         elif name in ("Content-Based",):
             model.fit(train, items)
@@ -115,10 +116,26 @@ def main():
     print("\nMetrics Table:")
     print(results_df.to_string(float_format=lambda x: f"{x:.4f}"))
 
+    # ── 1b. Fairness Metric ────────────────────────────────────
+    print("\n[1b] Fairness Analysis (heavy vs light raters)...")
+    fairness_sample = eval_users[:100]
+    for name, model in models.items():
+        fair = user_fairness(model, train, test, fairness_sample, k=K)
+        results[name]["NDCG_heavy"] = fair["NDCG@K_heavy"]
+        results[name]["NDCG_light"] = fair["NDCG@K_light"]
+        results[name]["Fairness Gap"] = fair["Fairness_gap"]
+        print(f"  {name}: heavy={fair['NDCG@K_heavy']:.4f}, light={fair['NDCG@K_light']:.4f}, gap={fair['Fairness_gap']:.4f}")
+
+    # Update CSV with fairness columns
+    results_df = pd.DataFrame(results).T
+    results_df.index.name = "Model"
+    results_df.to_csv(config.RESULTS_DIR / "metrics.csv")
+
     # ── 2. Rating Prediction Metrics (MAE/RMSE) ────────────────
     print("\n[2] Rating Prediction Metrics (MAE / RMSE)...")
     pred_models = {
         "Item-Item CF": models["Item-Item CF"],
+        "User-User CF": models["User-User CF"],
         "Matrix Fact.": models["Matrix Fact."],
     }
 
@@ -315,7 +332,8 @@ def main():
             "O(n_ratings)",                  # Highest Average
             "O(n_items * n_features)",       # Content-Based
             "O(n_items * n_features)",       # CB + Tags
-            "O(n_users * n_items²)",         # Item-Item CF
+            "O(n_users * n_items^2)",        # Item-Item CF
+            "O(n_users^2 * n_items)",        # User-User CF
             "O(n_epochs * n_ratings * k)",   # MF
         ],
     })
@@ -337,6 +355,38 @@ def main():
         plt.savefig(config.RESULTS_DIR / "figures" / "mf_training_curve.png", dpi=150)
         plt.close()
         print("  Saved MF training curve")
+
+    # ── 9. Radar Chart ──────────────────────────────────────────
+    print("\n[9] Radar Chart...")
+    radar_metrics = ["Precision@K", "Recall@K", "NDCG@K", "Hit Rate@K", "Coverage", "Diversity"]
+    available_radar = [m for m in radar_metrics if m in results_df.columns]
+
+    if len(available_radar) >= 3:
+        radar_models = ["Most Popular", "Content-Based", "Item-Item CF", "Matrix Fact."]
+        radar_models = [m for m in radar_models if m in results_df.index]
+
+        angles = np.linspace(0, 2 * np.pi, len(available_radar), endpoint=False).tolist()
+        angles += angles[:1]
+
+        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+        for model_name in radar_models:
+            values = results_df.loc[model_name, available_radar].values.tolist()
+            # Normalise to [0, 1] for comparability
+            col_max = results_df[available_radar].max()
+            col_max[col_max == 0] = 1
+            norm_values = (results_df.loc[model_name, available_radar] / col_max).values.tolist()
+            norm_values += norm_values[:1]
+            ax.plot(angles, norm_values, "o-", linewidth=2, label=model_name)
+            ax.fill(angles, norm_values, alpha=0.1)
+
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(available_radar, fontsize=9)
+        ax.set_title("Model Comparison (normalised)", y=1.08, fontsize=13)
+        ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1), fontsize=9)
+        plt.tight_layout()
+        plt.savefig(config.RESULTS_DIR / "figures" / "radar_chart.png", dpi=150, bbox_inches="tight")
+        plt.close()
+        print("  Saved radar chart")
 
     # ── Summary ─────────────────────────────────────────────────
     print("\n" + "=" * 70)

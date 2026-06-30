@@ -1,26 +1,28 @@
 """Matrix Factorization recommender using SGD (Stochastic Gradient Descent).
 
-Implements biased matrix factorization as per lecture slides and Netflix Prize:
+MatrixFactorization.pdf, Folien 6-7 + Koren, Bell & Volinsky (2009):
 
-    r̂_ui = μ + b_u + b_i + p_u · q_i
+    r_hat_ui = mu + b_u + b_i + p_u * q_i
 
 where:
-    μ   = global mean rating
-    b_u = user bias
+    mu  = global mean rating
+    b_u = user bias (Folie 22: 'Biases matter')
     b_i = item bias
     p_u = user latent factor vector (1 x n_factors)
     q_i = item latent factor vector (1 x n_factors)
 
-Objective function (minimise):
-    Σ_(u,i)∈known (r_ui - r̂_ui)² + λ(||p_u||² + ||q_i||² + b_u² + b_i²)
+Objective (minimise) -- Folie 7:
+    Sigma_(u,i) (r_ui - r_hat_ui)^2 + lambda*(||p_u||^2 + ||q_i||^2 + b_u^2 + b_i^2)
 
-SGD updates:
-    e_ui = r_ui - r̂_ui
-    b_u ← b_u + α(e_ui - λ·b_u)
-    b_i ← b_i + α(e_ui - λ·b_i)
-    p_u ← p_u + α(e_ui·q_i - λ·p_u)
-    q_i ← q_i + α(e_ui·p_u - λ·q_i)
+SGD updates -- Koren et al. (2009):
+    e_ui = r_ui - r_hat_ui
+    b_u <- b_u + alpha*(e_ui - lambda*b_u)
+    b_i <- b_i + alpha*(e_ui - lambda*b_i)
+    p_u <- p_u + alpha*(e_ui*q_i - lambda*p_u)
+    q_i <- q_i + alpha*(e_ui*p_u_old - lambda*q_i)
 """
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
@@ -30,11 +32,16 @@ from . import config
 class MatrixFactorizationRecommender:
     """Biased Matrix Factorization with SGD.
 
-    r̂_ui = μ + b_u + b_i + p_u · q_i
+    MatrixFactorization.pdf, Folien 6-7:
+        r_hat_ui = mu + b_u + b_i + p_u * q_i
+
+    Extended with biases as recommended by Koren et al. (2009),
+    referenced on Folie 22.
     """
 
-    def __init__(self, n_factors=50, n_epochs=20, lr=0.005, reg=0.02,
-                 random_state=42, verbose=True):
+    def __init__(self, n_factors: int = 50, n_epochs: int = 20, lr: float = 0.005,
+                 reg: float = 0.02, random_state: int = config.RANDOM_STATE,
+                 verbose: bool = True) -> None:
         self.n_factors = n_factors
         self.n_epochs = n_epochs
         self.lr = lr
@@ -54,8 +61,8 @@ class MatrixFactorizationRecommender:
         self.all_items_ = None
         self.training_losses_ = []
 
-    def fit(self, ratings):
-        """Train biased MF model using SGD on known ratings."""
+    def fit(self, ratings: pd.DataFrame) -> "MatrixFactorizationRecommender":
+        """Train biased MF model using SGD on known ratings (Folie 7-8)."""
         rng = np.random.RandomState(self.random_state)
 
         self.user_ids_ = np.sort(ratings[config.USER_COL].unique())
@@ -121,8 +128,8 @@ class MatrixFactorizationRecommender:
 
         return self
 
-    def predict_score(self, user_id, item_id):
-        """Predict score: r̂_ui = μ + b_u + b_i + p_u · q_i"""
+    def predict_score(self, user_id: int, item_id: int) -> float:
+        """Predict score: r_hat_ui = mu + b_u + b_i + p_u * q_i (Folie 6)."""
         u_known = user_id in self.user_id_to_index_
         i_known = item_id in self.item_id_to_index_
 
@@ -139,7 +146,7 @@ class MatrixFactorizationRecommender:
 
         return pred
 
-    def recommend(self, user_id, ratings_train, n=10, exclude_seen=True):
+    def recommend(self, user_id: int, ratings_train: pd.DataFrame, n: int = 10, exclude_seen: bool = True) -> list[int]:
         """Recommend top-n items by predicted score."""
         if user_id not in self.user_id_to_index_:
             return []

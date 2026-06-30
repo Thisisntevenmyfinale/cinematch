@@ -1,13 +1,14 @@
 """Non-personalized baseline recommenders.
 
-Implements three baselines as per lecture slides:
-- Most Popular (by interaction count)
-- Highest Average Rating (with minimum rating threshold)
-- Random (control baseline)
+Implements three baselines as per lecture slides
+(CollaborativeFiltering.pdf, Folien 12-13; EvaluationRecommenderSystems.pdf, Folie 28):
 
-Non-personalised formula from slides:
-    S(u, i) = Σ_v r_vi / |U|   (simple average of all ratings for item i)
+- Most Popular (by interaction count) -- standard baseline for comparison
+- Highest Average Rating: S(u, i) = Sigma_v r_vi / |U|  (Folie 12)
+- Random (control baseline, recommended in Folie 28)
 """
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
@@ -15,12 +16,16 @@ from . import config
 
 
 class MostPopularRecommender:
-    """Recommend the most frequently rated items (popularity = interaction count)."""
+    """Recommend the most frequently rated items (popularity = interaction count).
 
-    def __init__(self):
-        self.ranking_ = None
+    Standard baseline referenced in EvaluationRecommenderSystems.pdf, Folie 28:
+    'Always compare against simple baselines: Most popular'.
+    """
 
-    def fit(self, ratings, items=None):
+    def __init__(self) -> None:
+        self.ranking_: np.ndarray | None = None
+
+    def fit(self, ratings: pd.DataFrame, items: pd.DataFrame | None = None) -> "MostPopularRecommender":
         """Count interactions per item and rank by popularity."""
         popularity = (
             ratings.groupby(config.ITEM_COL)
@@ -31,7 +36,7 @@ class MostPopularRecommender:
         self.ranking_ = popularity[config.ITEM_COL].values
         return self
 
-    def recommend(self, user_id, ratings_train, n=10, exclude_seen=True):
+    def recommend(self, user_id: int, ratings_train: pd.DataFrame, n: int = 10, exclude_seen: bool = True) -> list[int]:
         """Return top-n most popular items not already seen by user."""
         if exclude_seen:
             seen = set(
@@ -48,16 +53,17 @@ class MostPopularRecommender:
 class HighestAverageRatingRecommender:
     """Recommend items with the highest average rating (min ratings filter).
 
-    From slides (non-personalised):
-        S(u, i) = Σ_v r_vi / |U|
-    We filter items with fewer than min_ratings to avoid noise.
+    From CollaborativeFiltering.pdf, Folie 12 (non-personalised):
+        S(u, i) = Sigma_v r_vi / |U|
+    Items with fewer than min_ratings are filtered to avoid noise from
+    low-sample items.
     """
 
-    def __init__(self, min_ratings=20):
+    def __init__(self, min_ratings: int = 20) -> None:
         self.min_ratings = min_ratings
-        self.ranking_ = None
+        self.ranking_: np.ndarray | None = None
 
-    def fit(self, ratings, items=None):
+    def fit(self, ratings: pd.DataFrame, items: pd.DataFrame | None = None) -> "HighestAverageRatingRecommender":
         """Compute average rating per item, filter by min_ratings, rank."""
         item_stats = ratings.groupby(config.ITEM_COL)[config.RATING_COL].agg(
             ["mean", "count"]
@@ -71,7 +77,7 @@ class HighestAverageRatingRecommender:
         self.ranking_ = qualified.index.values
         return self
 
-    def recommend(self, user_id, ratings_train, n=10, exclude_seen=True):
+    def recommend(self, user_id: int, ratings_train: pd.DataFrame, n: int = 10, exclude_seen: bool = True) -> list[int]:
         """Return top-n highest-rated items not already seen by user."""
         if exclude_seen:
             seen = set(
@@ -86,20 +92,24 @@ class HighestAverageRatingRecommender:
 
 
 class RandomRecommender:
-    """Recommend random unseen items (control baseline)."""
+    """Recommend random unseen items (control baseline).
 
-    def __init__(self, random_state=42):
+    Referenced in EvaluationRecommenderSystems.pdf, Folie 28:
+    'Always compare against simple baselines: Random'.
+    """
+
+    def __init__(self, random_state: int = config.RANDOM_STATE) -> None:
         self.random_state = random_state
-        self.items_ = None
+        self.items_: np.ndarray | None = None
 
-    def fit(self, ratings, items=None):
+    def fit(self, ratings: pd.DataFrame, items: pd.DataFrame | None = None) -> "RandomRecommender":
         """Store the list of all item IDs."""
         self.items_ = ratings[config.ITEM_COL].unique()
         return self
 
-    def recommend(self, user_id, ratings_train, n=10, exclude_seen=True):
+    def recommend(self, user_id: int, ratings_train: pd.DataFrame, n: int = 10, exclude_seen: bool = True) -> list[int]:
         """Sample n random unseen items."""
-        rng = np.random.RandomState(self.random_state + hash(user_id) % 10000)
+        rng = np.random.RandomState(self.random_state + hash(user_id) % 10_000)
         if exclude_seen:
             seen = set(
                 ratings_train.loc[

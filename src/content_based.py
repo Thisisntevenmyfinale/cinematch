@@ -1,44 +1,49 @@
 """Content-based recommender using TF-IDF item features and cosine similarity.
 
-Follows the lecture slides exactly:
-- Items modeled as TF-IDF vectors in keyword/genre space
-- User profile built from centered ratings:
-    profile(u) = Σ_i (r_ui - r̄_u) * vector(i)
-- Prediction via cosine similarity:
-    score(u, i) = cos(profile_u, vector_i)
+Follows ContentBasedFiltering.pdf exactly:
 
-TF-IDF from slides:
+Item representation -- TF-IDF (Folie 37):
     tfidf(term, doc) = tf(term, doc) * log(N / df(term))
-    where N = number of documents, df = document frequency
+
+User profile -- implicit from centred ratings (Folien 27-28):
+    profile(u) = Sigma_i (r_ui - r_u) * vector(i)
+
+Prediction -- cosine similarity (Folie 33/43):
+    score(u, i) = cos(profile_u, vector_i)
 """
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from scipy.sparse import issparse
+from scipy.sparse import issparse, spmatrix
 from . import config
 
 
 class ContentBasedRecommender:
-    """Content-based recommender using item genres (TF-IDF) and user profiles."""
+    """Content-based recommender using item genres (TF-IDF) and user profiles.
 
-    def __init__(self, feature_col=config.GENRES_COL, use_tags=False):
+    ContentBasedFiltering.pdf, Folien 27-43.
+    """
+
+    def __init__(self, feature_col: str = config.GENRES_COL, use_tags: bool = False) -> None:
         self.feature_col = feature_col
         self.use_tags = use_tags
-        self.vectorizer = None
-        self.item_features_ = None  # TF-IDF matrix (n_items x n_features)
-        self.item_ids_ = None  # array of item IDs in matrix order
-        self.item_id_to_index_ = None  # dict: item_id -> row index
+        self.vectorizer: TfidfVectorizer | None = None
+        self.item_features_: spmatrix | np.ndarray | None = None
+        self.item_ids_: np.ndarray | None = None
+        self.item_id_to_index_: dict[int, int] | None = None
 
-    def fit(self, ratings, items, tags=None):
-        """Build item feature matrix using TF-IDF on genres.
+    def fit(self, ratings: pd.DataFrame, items: pd.DataFrame, tags: pd.DataFrame | None = None) -> "ContentBasedRecommender":
+        """Build item feature matrix using TF-IDF on genres (Folie 37).
 
         Genres in MovieLens are pipe-separated (e.g. "Action|Comedy|Drama").
         We replace '|' with spaces so TfidfVectorizer treats each genre as a token.
 
         If use_tags=True and tags DataFrame provided, we append user-generated
-        tags to enrich the feature representation.
+        tags to enrich the feature representation (Folie 17: collective tagging).
         """
         items_clean = items.dropna(subset=[self.feature_col]).copy()
 
@@ -67,11 +72,12 @@ class ContentBasedRecommender:
         }
         return self
 
-    def build_user_profile(self, user_id, ratings_train):
+    def build_user_profile(self, user_id: int, ratings_train: pd.DataFrame) -> np.ndarray:
         """Build a user profile from centered ratings and TF-IDF item vectors.
 
-        From slides:
-            profile(u) = Σ_i (rating(u,i) - mean_rating(u)) * vector(i)
+        ContentBasedFiltering.pdf, Folien 27-28:
+            profile(u) = Sigma_i (r_ui - r_u) * vector(i)
+        Profile is L2-normalised after construction.
         """
         user_ratings = ratings_train[
             ratings_train[config.USER_COL] == user_id
@@ -99,10 +105,10 @@ class ContentBasedRecommender:
             profile = profile / norm
         return profile
 
-    def recommend(self, user_id, ratings_train, n=10, exclude_seen=True):
+    def recommend(self, user_id: int, ratings_train: pd.DataFrame, n: int = 10, exclude_seen: bool = True) -> list[int]:
         """Recommend items whose TF-IDF vectors are most similar to user profile.
 
-        Prediction from slides:
+        ContentBasedFiltering.pdf, Folie 33/43:
             score(u, i) = cos(profile_u, vector_i)
         """
         profile = self.build_user_profile(user_id, ratings_train)
@@ -127,7 +133,7 @@ class ContentBasedRecommender:
         top_items = scored_items[:n]
         return [iid for iid, _ in top_items]
 
-    def recommend_with_scores(self, user_id, ratings_train, n=10, exclude_seen=True):
+    def recommend_with_scores(self, user_id: int, ratings_train: pd.DataFrame, n: int = 10, exclude_seen: bool = True) -> list[tuple[int, float]]:
         """Same as recommend but also returns scores."""
         profile = self.build_user_profile(user_id, ratings_train)
         profile_2d = profile.reshape(1, -1)
@@ -145,7 +151,7 @@ class ContentBasedRecommender:
         scored_items.sort(key=lambda x: x[1], reverse=True)
         return scored_items[:n]
 
-    def similar_items(self, item_id, n=10):
+    def similar_items(self, item_id: int, n: int = 10) -> list[tuple[int, float]]:
         """Find items most similar to a given item (item-to-item content similarity)."""
         if item_id not in self.item_id_to_index_:
             return []

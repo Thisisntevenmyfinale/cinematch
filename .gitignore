@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+.DS_Store
+*.egg-info/
+.venv/
+.env
+*.txt
+!requirements.txt
+data/processed/
+.claude/

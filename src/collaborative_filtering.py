@@ -1,19 +1,20 @@
 """Collaborative filtering: User-User and Item-Item CF.
 
-Implements BOTH approaches exactly as per lecture slides:
+Implements BOTH approaches exactly as per CollaborativeFiltering.pdf:
 
-User-User CF (personalised, normalised):
-    S(u, i) = r̄_u + Σ_v∈N(u) (r_vi - r̄_v) · w_uv / Σ_v∈N(u) |w_uv|
+User-User CF (personalised, normalised) -- Folie 15:
+    S(u, i) = r_u + Sigma_v (r_vi - r_v) * w_uv / Sigma_v |w_uv|
 
-    where w_uv = Pearson correlation:
-    w_uv = Σ_i∈I_u∩I_v (r_ui - r̄_u)(r_vi - r̄_v) /
-            sqrt(Σ(r_ui - r̄_u)² · Σ(r_vi - r̄_v)²)
+    Similarity (Pearson Correlation) -- Folie 18:
+    w_uv = Sigma_i (r_ui - r_u)(r_vi - r_v) / (sigma_u * sigma_v)
 
-Item-Item CF (normalised):
-    S(u, i) = r̄_i + Σ_j∈N(i) (r_uj - r̄_j) · w_ij / Σ_j∈N(i) |w_ij|
+Item-Item CF (normalised) -- Folie 29:
+    S(u, i) = r_i + Sigma_j (r_uj - r_j) * w_ij / Sigma_j |w_ij|
 
-    where w_ij = cosine similarity on rating vectors (adjusted cosine).
+    Similarity: Adjusted Cosine (Folie 26) -- center by user means.
 """
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
@@ -25,26 +26,30 @@ from . import config
 class ItemItemCollaborativeFiltering:
     """Item-item collaborative filtering using adjusted cosine similarity.
 
-    From slides:
-        S(u, i) = r̄_i + Σ_j∈N(i) (r_uj - r̄_j) · w_ij / Σ_j∈N(i) |w_ij|
+    CollaborativeFiltering.pdf, Folie 29:
+        S(u, i) = r_i + Sigma_j (r_uj - r_j) * w_ij / Sigma_j |w_ij|
+
+    Similarity via adjusted cosine (Folie 26): user-mean-centered cosine.
+    Neighbourhood size k limits the number of similar items considered.
     """
 
-    def __init__(self, k=20, similarity="cosine"):
+    def __init__(self, k: int = 20, similarity: str = "cosine") -> None:
         self.k = k
         self.similarity = similarity
-        self.user_item_matrix_ = None
-        self.item_similarity_ = None
-        self.user_ids_ = None
-        self.item_ids_ = None
-        self.user_id_to_index_ = None
-        self.item_id_to_index_ = None
-        self.item_means_ = None
+        self.user_item_matrix_: np.ndarray | None = None
+        self.item_similarity_: np.ndarray | None = None
+        self.user_ids_: np.ndarray | None = None
+        self.item_ids_: np.ndarray | None = None
+        self.user_id_to_index_: dict[int, int] | None = None
+        self.item_id_to_index_: dict[int, int] | None = None
+        self.item_means_: np.ndarray | None = None
 
-    def fit(self, ratings):
+    def fit(self, ratings: pd.DataFrame) -> "ItemItemCollaborativeFiltering":
         """Create user-item matrix and compute item-item similarities.
 
-        Uses adjusted cosine similarity: center user ratings before computing
-        cosine, so users who rate on different scales are normalised.
+        Uses adjusted cosine similarity (Folie 26): center user ratings
+        before computing cosine, so users who rate on different scales
+        are normalised.
         """
         self.user_ids_ = np.sort(ratings[config.USER_COL].unique())
         self.item_ids_ = np.sort(ratings[config.ITEM_COL].unique())
@@ -83,11 +88,11 @@ class ItemItemCollaborativeFiltering:
 
         return self
 
-    def predict_score(self, user_id, item_id):
+    def predict_score(self, user_id: int, item_id: int) -> float:
         """Predict score for one user-item pair.
 
-        From slides (Item-Item CF, normalised):
-            S(u, i) = r̄_i + Σ_j∈N(i) (r_uj - r̄_j) · w_ij / Σ_j∈N(i) |w_ij|
+        CollaborativeFiltering.pdf, Folie 29 (Item-Item CF, normalised):
+            S(u, i) = r_i + Sigma_j (r_uj - r_j) * w_ij / Sigma_j |w_ij|
         using top-k most similar items that the user has rated.
         """
         if user_id not in self.user_id_to_index_:
@@ -129,7 +134,7 @@ class ItemItemCollaborativeFiltering:
 
         return self.item_means_[i_idx] + numerator / denom
 
-    def recommend(self, user_id, ratings_train, n=10, exclude_seen=True):
+    def recommend(self, user_id: int, ratings_train: pd.DataFrame, n: int = 10, exclude_seen: bool = True) -> list[int]:
         """Generate top-n recommendations for a user."""
         if user_id not in self.user_id_to_index_:
             return []
@@ -156,27 +161,30 @@ class ItemItemCollaborativeFiltering:
 class UserUserCollaborativeFiltering:
     """User-user collaborative filtering using Pearson correlation.
 
-    From slides (personalised, normalised):
-        S(u, i) = r̄_u + Σ_v∈N(u) (r_vi - r̄_v) · w_uv / Σ_v∈N(u) |w_uv|
+    CollaborativeFiltering.pdf, Folie 15 (personalised, normalised):
+        S(u, i) = r_u + Sigma_v (r_vi - r_v) * w_uv / Sigma_v |w_uv|
 
-    Similarity:
-        w_uv = Σ_i∈I_u∩I_v (r_ui - r̄_u)(r_vi - r̄_v) /
-                sqrt(Σ(r_ui - r̄_u)² · Σ(r_vi - r̄_v)²)
+    Similarity -- Pearson Correlation (Folie 18):
+        w_uv = Sigma_i (r_ui - r_u)(r_vi - r_v) / (sigma_u * sigma_v)
     """
 
-    def __init__(self, k=20, similarity="pearson"):
+    def __init__(self, k: int = 20, similarity: str = "pearson") -> None:
         self.k = k
         self.similarity = similarity
-        self.user_item_matrix_ = None
-        self.user_similarity_ = None
-        self.user_ids_ = None
-        self.item_ids_ = None
-        self.user_id_to_index_ = None
-        self.item_id_to_index_ = None
-        self.user_means_ = None
+        self.user_item_matrix_: np.ndarray | None = None
+        self.user_similarity_: np.ndarray | None = None
+        self.user_ids_: np.ndarray | None = None
+        self.item_ids_: np.ndarray | None = None
+        self.user_id_to_index_: dict[int, int] | None = None
+        self.item_id_to_index_: dict[int, int] | None = None
+        self.user_means_: np.ndarray | None = None
 
-    def fit(self, ratings):
-        """Build user-item matrix and compute user-user Pearson correlations."""
+    def fit(self, ratings: pd.DataFrame) -> "UserUserCollaborativeFiltering":
+        """Build user-item matrix and compute user-user Pearson correlations.
+
+        Pearson (Folie 18): cosine on mean-centered rating vectors,
+        restricted to co-rated items. Minimum 2 co-rated items required.
+        """
         self.user_ids_ = np.sort(ratings[config.USER_COL].unique())
         self.item_ids_ = np.sort(ratings[config.ITEM_COL].unique())
         self.user_id_to_index_ = {
@@ -230,9 +238,9 @@ class UserUserCollaborativeFiltering:
 
         return self
 
-    def predict_score(self, user_id, item_id):
-        """Predict score from slides formula:
-        S(u, i) = r̄_u + Σ_v∈N(u) (r_vi - r̄_v) · w_uv / Σ_v∈N(u) |w_uv|
+    def predict_score(self, user_id: int, item_id: int) -> float:
+        """Predict score -- CollaborativeFiltering.pdf, Folie 15:
+        S(u, i) = r_u + Sigma_v (r_vi - r_v) * w_uv / Sigma_v |w_uv|
         """
         if user_id not in self.user_id_to_index_:
             return 3.0
@@ -274,7 +282,7 @@ class UserUserCollaborativeFiltering:
 
         return self.user_means_[u_idx] + numerator / denom
 
-    def recommend(self, user_id, ratings_train, n=10, exclude_seen=True):
+    def recommend(self, user_id: int, ratings_train: pd.DataFrame, n: int = 10, exclude_seen: bool = True) -> list[int]:
         """Generate top-n recommendations for a user."""
         if user_id not in self.user_id_to_index_:
             return []

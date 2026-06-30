@@ -1,26 +1,29 @@
 """Evaluation metrics for recommender systems.
 
-Implements all metrics from the lecture slides:
+All metrics from EvaluationRecommenderSystems.pdf:
 
-RATING PREDICTION:
+RATING PREDICTION (Folien 11-12):
     - MAE (Mean Absolute Error)
     - RMSE (Root Mean Squared Error)
 
-TOP-N RECOMMENDATION (per-user, then averaged):
-    - Precision@K
-    - Recall@K
+TOP-N RECOMMENDATION (Folien 15-19, per-user, then averaged):
+    - Precision@K  (Folie 15)
+    - Recall@K     (Folie 16)
     - Hit Rate@K
-    - DCG@K:    Σ_i rel_i / log2(i + 1), rank i starting at 1
-    - NDCG@K:   DCG@K / IDCG@K
-    - MRR:      1/rank of first relevant item
+    - DCG@K        (Folie 17): Sigma_i rel_i / log2(i + 1)
+    - NDCG@K       (Folie 18): DCG@K / IDCG@K
+    - MRR          (Folie 19): 1/rank of first relevant item
 
-BEYOND ACCURACY (from slides):
-    - Catalog Coverage: |recommended items| / |all items|
-    - Diversity: average pairwise distance in recommendation lists
-    - Novelty: average self-information (-log2 popularity)
-    - Popularity Bias: % recommendations from top-X% popular items
-    - Serendipity: unexpected AND relevant items
+BEYOND ACCURACY (Folien 22-26):
+    - Catalog Coverage (Folie 25): |recommended items| / |all items|
+    - Diversity        (Folie 23): average pairwise distance
+    - Novelty          (Folie 24): average self-information
+    - Popularity Bias  (Folie 26): % from top-X% popular items
+    - Serendipity      (Folie 26): unexpected AND relevant items
+    - Fairness: performance gap between heavy and light raters
 """
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
@@ -30,20 +33,20 @@ from . import config
 
 # ── Rating Prediction Metrics ─────────────────────────────────────
 
-def mae(predictions, actuals):
-    """Mean Absolute Error."""
-    return np.mean(np.abs(np.array(predictions) - np.array(actuals)))
+def mae(predictions: list | np.ndarray, actuals: list | np.ndarray) -> float:
+    """Mean Absolute Error (Folie 11)."""
+    return float(np.mean(np.abs(np.array(predictions) - np.array(actuals))))
 
 
-def rmse(predictions, actuals):
-    """Root Mean Squared Error."""
-    return np.sqrt(np.mean((np.array(predictions) - np.array(actuals)) ** 2))
+def rmse(predictions: list | np.ndarray, actuals: list | np.ndarray) -> float:
+    """Root Mean Squared Error (Folie 12)."""
+    return float(np.sqrt(np.mean((np.array(predictions) - np.array(actuals)) ** 2)))
 
 
 # ── Top-N Recommendation Metrics (per user) ───────────────────────
 
-def precision_at_k(recommended_items, relevant_items, k=10):
-    """Precision@K: fraction of recommended items that are relevant."""
+def precision_at_k(recommended_items: list, relevant_items: set, k: int = 10) -> float:
+    """Precision@K (Folie 15): fraction of recommended items that are relevant."""
     rec = list(recommended_items)[:k]
     rel = set(relevant_items)
     if len(rec) == 0:
@@ -51,8 +54,8 @@ def precision_at_k(recommended_items, relevant_items, k=10):
     return len(set(rec) & rel) / len(rec)
 
 
-def recall_at_k(recommended_items, relevant_items, k=10):
-    """Recall@K: fraction of relevant items that are recommended."""
+def recall_at_k(recommended_items: list, relevant_items: set, k: int = 10) -> float:
+    """Recall@K (Folie 16): fraction of relevant items that are recommended."""
     rec = set(list(recommended_items)[:k])
     rel = set(relevant_items)
     if len(rel) == 0:
@@ -60,15 +63,15 @@ def recall_at_k(recommended_items, relevant_items, k=10):
     return len(rec & rel) / len(rel)
 
 
-def hit_rate_at_k(recommended_items, relevant_items, k=10):
+def hit_rate_at_k(recommended_items: list, relevant_items: set, k: int = 10) -> float:
     """Hit Rate@K: 1 if at least one relevant item in top-k, else 0."""
     rec = set(list(recommended_items)[:k])
     rel = set(relevant_items)
     return 1.0 if len(rec & rel) > 0 else 0.0
 
 
-def dcg_at_k(relevance_scores, k=10):
-    """DCG@K from slides: Σ_i rel_i / log2(i + 1), rank i from 1."""
+def dcg_at_k(relevance_scores: list | np.ndarray, k: int = 10) -> float:
+    """DCG@K (Folie 17): Sigma_i rel_i / log2(i + 1), rank i from 1."""
     rel = np.array(relevance_scores)[:k]
     if len(rel) == 0:
         return 0.0
@@ -76,8 +79,8 @@ def dcg_at_k(relevance_scores, k=10):
     return np.sum(rel / np.log2(ranks + 1))
 
 
-def ndcg_at_k(recommended_items, relevant_items, k=10):
-    """NDCG@K with binary relevance (from slides).
+def ndcg_at_k(recommended_items: list, relevant_items: set, k: int = 10) -> float:
+    """NDCG@K with binary relevance (Folie 18).
 
     1. Build binary relevance vector for recommended items
     2. Compute DCG
@@ -100,8 +103,8 @@ def ndcg_at_k(recommended_items, relevant_items, k=10):
     return dcg / idcg
 
 
-def mean_reciprocal_rank(recommended_items, relevant_items, k=10):
-    """MRR: 1/rank of first relevant item (from slides)."""
+def mean_reciprocal_rank(recommended_items: list, relevant_items: set, k: int = 10) -> float:
+    """MRR (Folie 19): 1/rank of first relevant item."""
     rec = list(recommended_items)[:k]
     rel = set(relevant_items)
     for rank, item in enumerate(rec, start=1):
@@ -112,8 +115,8 @@ def mean_reciprocal_rank(recommended_items, relevant_items, k=10):
 
 # ── Beyond-Accuracy Metrics ──────────────────────────────────────
 
-def catalog_coverage(all_recommendations, all_items):
-    """Catalog coverage from slides:
+def catalog_coverage(all_recommendations: list[list], all_items: set | list) -> float:
+    """Catalog coverage (Folie 25):
     |unique recommended items| / |all items in catalog|
     """
     recommended_set = set()
@@ -122,8 +125,8 @@ def catalog_coverage(all_recommendations, all_items):
     return len(recommended_set) / len(set(all_items)) if len(all_items) > 0 else 0.0
 
 
-def intra_list_diversity(recommended_items, item_features, item_id_to_index):
-    """Diversity from slides: average pairwise distance in recommendation list.
+def intra_list_diversity(recommended_items: list, item_features: np.ndarray, item_id_to_index: dict) -> float:
+    """Diversity (Folie 23): average pairwise distance in recommendation list.
 
     diversity(L) = 1 - mean(cos_sim(i, j)) for all pairs i,j in L
     Uses item feature vectors (e.g. TF-IDF genre vectors).
@@ -145,8 +148,8 @@ def intra_list_diversity(recommended_items, item_features, item_id_to_index):
     return 1.0 - avg_sim
 
 
-def novelty_score(recommended_items, item_popularity, n_users):
-    """Novelty from slides: average self-information.
+def novelty_score(recommended_items: list, item_popularity: dict, n_users: int) -> float:
+    """Novelty (Folie 24): average self-information.
 
     novelty(i) = -log2(popularity(i) / n_users)
     Higher novelty = less popular items recommended.
@@ -159,8 +162,8 @@ def novelty_score(recommended_items, item_popularity, n_users):
     return np.mean(scores) if scores else 0.0
 
 
-def popularity_bias(recommended_items, item_popularity, top_percent=0.1):
-    """Popularity bias from slides:
+def popularity_bias(recommended_items: list, item_popularity: dict, top_percent: float = 0.1) -> float:
+    """Popularity bias (Folie 26):
     What percentage of recommendations come from the top X% most popular items?
     """
     if not item_popularity:
@@ -173,24 +176,74 @@ def popularity_bias(recommended_items, item_popularity, top_percent=0.1):
     return sum(1 for i in recommended_items if i in top_items) / len(recommended_items)
 
 
-def serendipity_score(recommended_items, relevant_items, popular_items):
-    """Serendipity from slides: unexpected AND relevant items.
+def serendipity_score(recommended_items: list, relevant_items: set, popular_items: set) -> float:
+    """Serendipity (Folie 26): unexpected AND relevant items.
 
     An item is serendipitous if it is relevant but NOT in the popular baseline.
-    serendipity = |relevant ∩ recommended ∩ ¬popular| / |recommended|
+    serendipity = |relevant & recommended & ~popular| / |recommended|
     """
     rec = set(recommended_items)
     rel = set(relevant_items)
     pop = set(popular_items)
-    serendipitous = rec & rel - pop
+    serendipitous = (rec & rel) - pop
     return len(serendipitous) / len(rec) if len(rec) > 0 else 0.0
+
+
+# ── Fairness Metric ─────────────────────────────────────────────
+
+def user_fairness(
+    model,
+    ratings_train: pd.DataFrame,
+    ratings_test: pd.DataFrame,
+    users: list | np.ndarray,
+    k: int = 10,
+    percentile: int = 50,
+) -> dict[str, float]:
+    """Fairness: performance gap between heavy and light raters.
+
+    Splits users at the given percentile of training interaction count.
+    Returns NDCG@K for each group and the absolute gap.
+    A smaller gap indicates fairer treatment across user activity levels.
+    """
+    user_counts = ratings_train.groupby(config.USER_COL).size()
+    threshold = np.percentile(user_counts.values, percentile)
+
+    heavy_users = set(user_counts[user_counts >= threshold].index)
+    light_users = set(user_counts[user_counts < threshold].index)
+
+    def _avg_ndcg(user_subset: set) -> float:
+        scores = []
+        for uid in users:
+            if uid not in user_subset:
+                continue
+            user_test = ratings_test[ratings_test[config.USER_COL] == uid]
+            relevant = set(
+                user_test.loc[user_test[config.RATING_COL] >= 4.0, config.ITEM_COL]
+            )
+            if len(relevant) == 0:
+                continue
+            recs = model.recommend(uid, ratings_train, n=k, exclude_seen=True)
+            scores.append(ndcg_at_k(recs, relevant, k))
+        return float(np.mean(scores)) if scores else 0.0
+
+    ndcg_heavy = _avg_ndcg(heavy_users)
+    ndcg_light = _avg_ndcg(light_users)
+
+    return {
+        "NDCG@K_heavy": ndcg_heavy,
+        "NDCG@K_light": ndcg_light,
+        "Fairness_gap": abs(ndcg_heavy - ndcg_light),
+    }
 
 
 # ── Full Evaluation Loop ─────────────────────────────────────────
 
-def evaluate_model(model, ratings_train, ratings_test, users, items_df=None,
-                   k=10, item_features=None, item_id_to_index=None,
-                   item_popularity=None, n_users=None, popular_items=None):
+def evaluate_model(model, ratings_train: pd.DataFrame, ratings_test: pd.DataFrame,
+                   users: list | np.ndarray, items_df: pd.DataFrame | None = None,
+                   k: int = 10, item_features: np.ndarray | None = None,
+                   item_id_to_index: dict | None = None,
+                   item_popularity: dict | None = None, n_users: int | None = None,
+                   popular_items: set | None = None) -> dict[str, float]:
     """Evaluate a recommender model over a set of users.
 
     Returns a dict of averaged metrics.
