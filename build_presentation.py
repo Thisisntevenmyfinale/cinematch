@@ -285,19 +285,16 @@ def build():
     # ── Slide 17: Ethics & Social Implications ──────────────────
     s = prs.slides.add_slide(blank)
     add_bullet_slide(s, "ETHICAL & SOCIAL IMPLICATIONS", [
-        "Filter bubbles: Content-Based has diversity of only 0.09 -- users see",
-        "  increasingly narrow genre profiles, limiting cultural exploration",
+        "Filter bubbles: Content-Based diversity = 0.09 -- users see increasingly",
+        "  narrow genre profiles, limiting cultural exploration",
         "",
-        "Popularity bias amplification: Most Popular (100% pop bias) surfaces",
-        "  the same 60 movies to all users, marginalizing niche content",
+        "Popularity bias: Most Popular (100%) surfaces the same 60 movies to all",
+        "  users, marginalizing 99.4% of the catalog (rich-get-richer loop)",
         "",
-        "Fairness: heavy raters get 2x better NDCG than light raters (Most Pop),",
-        "  disadvantaging casual users who contribute fewer ratings",
-        "",
-        "Privacy: CF requires storing and processing individual rating histories",
-        "Transparency: MF latent factors are not interpretable -- users cannot",
-        "  understand why a recommendation was made",
-        "User autonomy: users have no control over recommendation logic in this prototype",
+        "Fairness: heavy raters get 2x better NDCG than light raters (Most Pop gap=0.156)",
+        "Privacy: CF requires storing individual rating histories",
+        "Transparency: MF latent factors are not interpretable to end users",
+        "User autonomy: no control over recommendation logic in this prototype",
     ])
 
     # ── Slide 18: UX & Demo ─────────────────────────────────────
@@ -335,17 +332,16 @@ def build():
     s = prs.slides.add_slide(blank)
     add_bullet_slide(s, "FINAL REMARKS", [
         "All formulas implemented exactly as in Prof. Torrens' lecture slides (verified audit)",
-        "Most Popular is surprisingly strong in sparse data (P@10 = 0.122)",
-        "  -- but only 32.4% of users get a relevant hit even from best personalized method (MF)",
+        "Most Popular is surprisingly strong in sparse data (P@10 = 0.122) -- but only 32.4%",
+        "  of users get a relevant hit even from the best personalized method (MF)",
         "",
-        "Core insight: 'accuracy is not enough' (as lectures emphasise)",
-        "  -- diversity, novelty, bias, and scalability matter equally in production",
-        "  -- no single model dominates; ensembles are the path forward (Netflix Prize, Folie 22)",
+        "'Accuracy is not enough': diversity, novelty, bias, and scalability matter equally",
+        "  No single model dominates; ensembles are the path forward (Netflix Prize, Folie 22)",
         "",
-        "When is MF worth 20s training over 0.003s Most Popular? Only when the platform is",
-        "  large enough that a 5% precision lift translates to significant engagement gains",
+        "When is MF worth 20s training over 0.003s Most Popular? Only when platform scale",
+        "  makes a 5% precision lift translate to significant engagement gains",
         "",
-        "Honest limitation: at 98.3% sparsity, all methods struggle with top-N --",
+        "Honest limitation: at 98.3% sparsity all methods struggle with top-N;",
         "  academically rigorous, but production deployment requires hybrid extensions",
     ])
 
